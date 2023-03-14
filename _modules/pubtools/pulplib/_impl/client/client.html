@@ -1,7 +1,7 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,9 +9,8 @@
     <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../../../../_static/alabaster.css" />
     <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
-    <script src="../../../../../_static/jquery.js"></script>
-    <script src="../../../../../_static/underscore.js"></script>
     <script src="../../../../../_static/doctools.js"></script>
+    <script src="../../../../../_static/sphinx_highlight.js"></script>
     <link rel="index" title="Index" href="../../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../../search.html" />
    
@@ -74,7 +73,7 @@
 
 
 <div class="viewcode-block" id="Client"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client">[docs]</a><span class="k">class</span> <span class="nc">Client</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A client for the Pulp 2.x API.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A client for the Pulp 2.x API.</span>
 
 <span class="sd">    This class provides high-level methods for querying a Pulp server and performing</span>
 <span class="sd">    actions in Pulp.</span>
@@ -164,7 +163,7 @@
     <span class="n">_RETRY_POLICY</span> <span class="o">=</span> <span class="n">retry</span><span class="o">.</span><span class="n">PulpRetryPolicy</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            str url</span>
 <span class="sd">                URL of a Pulp server, e.g. https://pulp.example.com/.</span>
@@ -174,12 +173,23 @@
 <span class="sd">                If more than this number of tasks are running, the client will wait before triggering more.</span>
 <span class="sd">                This can be used to ensure no single client overwhelms the Pulp server.</span>
 
+<span class="sd">            int threads</span>
+<span class="sd">                A hint for the number of threads the client should use in order to</span>
+<span class="sd">                make concurrent requests to Pulp.</span>
+
+<span class="sd">                This number should be considered as more of a scaling factor than</span>
+<span class="sd">                a precise thread count. The client in practice will use more than</span>
+<span class="sd">                this number of threads.</span>
+
 <span class="sd">            object auth, cert, headers, max_redirects, params, proxies, verify</span>
 <span class="sd">                Any of these arguments, if provided, are used to initialize</span>
 <span class="sd">                :class:`requests.Session` objects used by the client.</span>
 
 <span class="sd">                These may be used, for example, to configure the credentials</span>
 <span class="sd">                for the Pulp server or to use an alternative CA bundle.</span>
+
+<span class="sd">        .. versionadded:: 2.31.0</span>
+<span class="sd">            Added the ``threads`` argument.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_url</span> <span class="o">=</span> <span class="n">url</span>
 
@@ -199,7 +209,10 @@
             <span class="k">if</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_session_kwargs</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
 
-        <span class="n">_task_throttle</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;task_throttle&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_TASK_THROTTLE</span><span class="p">)</span>
+        <span class="n">task_throttle</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;task_throttle&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_TASK_THROTTLE</span><span class="p">)</span>
+        <span class="n">threads</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;threads&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">threads</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">threads</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">threads</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
@@ -217,7 +230,8 @@
         <span class="c1">#   it&#39;s not successful</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_request_executor</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-requests&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-requests&quot;</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="n">threads</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_response</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_retry</span><span class="p">(</span><span class="n">retry_policy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_RETRY_POLICY</span><span class="p">)</span>
@@ -229,7 +243,7 @@
         <span class="c1"># - HTTP requests don&#39;t happen here and are still submitted via</span>
         <span class="c1">#   request_executor (hence no retry needed on this executor)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_upload_executor</span> <span class="o">=</span> <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-uploads&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_UPLOAD_THREADS</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-uploads&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">threads</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_UPLOAD_THREADS</span>
         <span class="p">)</span>
 
         <span class="c1"># executor for issuing HTTP requests to Pulp which spawn tasks:</span>
@@ -242,12 +256,13 @@
         <span class="n">poller</span> <span class="o">=</span> <span class="n">TaskPoller</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_session</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_task_executor</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-tasks&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-tasks&quot;</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="n">threads</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_response</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_spawned_tasks</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_poll</span><span class="p">(</span><span class="n">poller</span><span class="p">,</span> <span class="n">cancel_fn</span><span class="o">=</span><span class="n">poller</span><span class="o">.</span><span class="n">cancel</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">with_throttle</span><span class="p">(</span><span class="n">_task_throttle</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">with_throttle</span><span class="p">(</span><span class="n">task_throttle</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_retry</span><span class="p">(</span><span class="n">retry_policy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_RETRY_POLICY</span><span class="p">)</span>
         <span class="p">)</span>
 
@@ -260,7 +275,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_task_executor</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Client.get_repository"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.get_repository">[docs]</a>    <span class="k">def</span> <span class="nf">get_repository</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repository_id</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get a repository by ID.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a repository by ID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            repository_id (str)</span>
@@ -281,7 +296,7 @@
         <span class="k">return</span> <span class="n">f_proxy</span><span class="p">(</span><span class="n">repo_f</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Client.search_repository"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_repository">[docs]</a>    <span class="k">def</span> <span class="nf">search_repository</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Search for repositories matching the given criteria.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search for repositories matching the given criteria.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
@@ -301,7 +316,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Client.search_content"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_content">[docs]</a>    <span class="k">def</span> <span class="nf">search_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Search for units across all repositories.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search for units across all repositories.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
@@ -339,7 +354,7 @@
 <div class="viewcode-block" id="Client.copy_content"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.copy_content">[docs]</a>    <span class="k">def</span> <span class="nf">copy_content</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">from_repository</span><span class="p">,</span> <span class="n">to_repository</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">CopyOptions</span><span class="p">()</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Copy content from one repository to another.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy content from one repository to another.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            from_repository (:class:`~pubtools.pulplib.Repository`)</span>
@@ -392,7 +407,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Client.update_content"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.update_content">[docs]</a>    <span class="k">def</span> <span class="nf">update_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unit</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update mutable fields on an existing unit.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update mutable fields on an existing unit.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            unit (:class:`~pubtools.pulplib.Unit`)</span>
@@ -433,7 +448,7 @@
         <span class="k">return</span> <span class="n">out</span></div>
 
 <div class="viewcode-block" id="Client.update_repository"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.update_repository">[docs]</a>    <span class="k">def</span> <span class="nf">update_repository</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repository</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update mutable fields on an existing repository.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update mutable fields on an existing repository.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            repository (:class:`~pubtools.pulplib.Repository`)</span>
@@ -484,7 +499,7 @@
         <span class="p">)</span>
 
 <div class="viewcode-block" id="Client.search_distributor"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_distributor">[docs]</a>    <span class="k">def</span> <span class="nf">search_distributor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Search the distributors matching the given criteria.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search the distributors matching the given criteria.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
@@ -503,7 +518,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search</span><span class="p">(</span><span class="n">Distributor</span><span class="p">,</span> <span class="s2">&quot;distributors&quot;</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Client.search_task"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_task">[docs]</a>    <span class="k">def</span> <span class="nf">search_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Search the tasks matching the given criteria.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search the tasks matching the given criteria.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
@@ -550,16 +565,27 @@
                     <span class="s2">&quot;filters&quot;</span><span class="p">:</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span>
                 <span class="p">}</span>
             <span class="p">}</span>
+
+            <span class="k">if</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">unit_fields</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;fields&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+                    <span class="nb">set</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">pulp_field_name</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">unit_fields</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
             <span class="n">search</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">search_options</span> <span class="ow">or</span> <span class="p">{})</span>
 
             <span class="k">if</span> <span class="n">search_type</span> <span class="o">==</span> <span class="s2">&quot;search/units&quot;</span><span class="p">:</span>
                 <span class="c1"># Unit searches need a little special handling:</span>
                 <span class="c1"># - serialization might have extracted some type_ids</span>
-                <span class="c1"># - filters should be wrapped under &#39;unit&#39;</span>
+                <span class="c1"># - filters/fields should be wrapped under &#39;unit&#39;</span>
                 <span class="c1">#   (we do not support searching on associations right now)</span>
                 <span class="k">if</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">type_ids</span><span class="p">:</span>
                     <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;type_ids&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">type_ids</span>
-                <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;filters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;filters&quot;</span><span class="p">]}</span>
+
+                <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;filters&quot;</span><span class="p">,</span> <span class="s2">&quot;fields&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">]:</span>
+                        <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="n">elem</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="n">search</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="n">elem</span><span class="p">]}</span>
 
             <span class="n">searches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">search</span><span class="p">)</span>
             <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_do_search</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">search</span><span class="p">))</span>
@@ -582,7 +608,7 @@
         <span class="p">)</span>
 
 <div class="viewcode-block" id="Client.get_maintenance_report"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.get_maintenance_report">[docs]</a>    <span class="k">def</span> <span class="nf">get_maintenance_report</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the current maintenance mode status for this Pulp server.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the current maintenance mode status for this Pulp server.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Future[:class:`~pubtools.pulplib.MaintenanceReport`]</span>
@@ -600,7 +626,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Client.set_maintenance"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.set_maintenance">[docs]</a>    <span class="k">def</span> <span class="nf">set_maintenance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">report</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Set maintenance mode for this Pulp server.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set maintenance mode for this Pulp server.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            report:</span>
@@ -626,7 +652,7 @@
         <span class="k">return</span> <span class="n">f_flat_map</span><span class="p">(</span><span class="n">upload_ft</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">repo</span><span class="o">.</span><span class="n">publish</span><span class="p">())</span></div>
 
 <div class="viewcode-block" id="Client.get_content_type_ids"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.get_content_type_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_content_type_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the content types supported by this Pulp server.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the content types supported by this Pulp server.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Future[list[str]]</span>
@@ -763,7 +789,9 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span> <span class="s2">&quot;pulp/api/v2/repositories/</span><span class="si">%s</span><span class="s2">/actions/associate/&quot;</span> <span class="o">%</span> <span class="n">dest_repo_id</span>
         <span class="p">)</span>
 
-        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">type_ids_accum</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span>
+            <span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">unit_type_accum</span><span class="o">=</span><span class="kc">None</span>
+        <span class="p">)</span>
 
         <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;source_repo_id&quot;</span><span class="p">:</span> <span class="n">src_repo_id</span><span class="p">,</span> <span class="s2">&quot;criteria&quot;</span><span class="p">:</span> <span class="p">{}}</span>
         <span class="k">if</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">type_ids</span><span class="p">:</span>
@@ -787,7 +815,9 @@
         <span class="c1"># use type hint=Unit so that if type_ids are the goal here</span>
         <span class="c1"># then we will get back a properly prepared PulpSearch with</span>
         <span class="c1"># a populated type_ids field</span>
-        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">type_ids_accum</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span>
+            <span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">unit_type_accum</span><span class="o">=</span><span class="kc">None</span>
+        <span class="p">)</span>
 
         <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;criteria&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type_ids&quot;</span><span class="p">:</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">type_ids</span><span class="p">}}</span>
 
@@ -1081,7 +1111,7 @@
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script>document.getElementById('searchbox').style.display = "block"</script>
 
 
 
@@ -1098,8 +1128,8 @@
       &copy;2019, Red Hat.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
     </div>
 
